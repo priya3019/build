@@ -1,30 +1,42 @@
-pipeline{
-	agent any
-	
-	stages{
-		stage("DOCKER BUILD"){
-			steps{
-				echo "BUILD stage"
-				sh ''' 
-					cd /var/lib/jenkins/workspace/build
-					docker build -t priyappatil/jenkins:1.10 .
-				'''
-			}
-		}
-		stage("DOCKER PUSH"){
-	                 steps{
-				sh 'docker image ls'
-				sh 'docker push priyappatil/jenkins:1.10'
-				echo "Docker image pushed to docker hub successfuly"
-			}
-		}
-		
-		stage("Docker-run"){
-			steps{
-				echo "Running container"
-				sh 'docker run -it -d -p 8060:8080 --name priyatomcat priyappatil/jenkins:1.10'
-				
-			}
-		}
-	}
-}
+pipeline {
+  environment {
+    imagename = "priyappatil/maven"
+    registryCredential = 'priyappatil-dockerhub'
+    dockerImage = ''
+  }
+  agent any
+  stages {
+    stage('Cloning Git') {
+      steps {
+        git([url: 'https://github.com/priya3019/build.git', branch: 'main'])
+
+      }
+    }
+    stage('Building image') {
+      steps{
+        script {
+          dockerImage = docker.build imagename
+        }
+      }
+    }
+    stage('Deploy Image') {
+      steps{
+        script {
+          docker.withRegistry( '', registryCredential ) {
+            dockerImage.push("$BUILD_NUMBER")
+             dockerImage.push('latest')
+
+          }
+        }
+      }
+    }
+    stage('Docker Run') {
+     steps{
+         script {
+            dockerImage.run("-p 8090:8080 --rm --name priyap")
+         }
+     }
+    }
+    
+    }
+  }
